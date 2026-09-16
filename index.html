@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <base href="./">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="theme-color" content="#000000">
+  <title>Bills Must Be Paid</title>
+  <link rel="stylesheet" href="TemplateData/style.css">
+</head>
+<body>
+  <!-- StaticQuasar931 watermark: standalone game wrapper branding. -->
+  <nav id="static-menu" aria-label="StaticQuasar931 Games">
+    <a href="https://sites.google.com/view/staticquasar931/gm3z" target="_blank" rel="noopener noreferrer">STATIC / GAMES</a>
+  </nav>
+
+  <main id="unity-container" aria-label="Bills Must Be Paid game">
+    <canvas id="unity-canvas" width="1920" height="1080" tabindex="-1"></canvas>
+
+    <section id="unity-loading-bar" aria-live="polite">
+      <div id="unity-logo" aria-hidden="true"></div>
+      <div id="unity-progress-bar-empty"><div id="unity-progress-bar-full"></div></div>
+      <p id="loading-text">Loading Bills Must Be Paid...</p>
+    </section>
+
+    <div id="unity-warning" role="alert" hidden></div>
+    <button id="fullscreen-button" type="button" aria-label="Enter fullscreen">Fullscreen</button>
+  </main>
+
+  <script>
+    (() => {
+      const buildUrl = 'Build';
+      const dataParts = [
+        'game.data.part01',
+        'game.data.part02',
+        'game.data.part03',
+        'game.data.part04'
+      ];
+      const wasmParts = [
+        'game.wasm.part01',
+        'game.wasm.part02',
+        'game.wasm.part03',
+        'game.wasm.part04'
+      ];
+      const container = document.querySelector('#unity-container');
+      const canvas = document.querySelector('#unity-canvas');
+      const loadingBar = document.querySelector('#unity-loading-bar');
+      const progressBar = document.querySelector('#unity-progress-bar-full');
+      const warningBanner = document.querySelector('#unity-warning');
+      const fullscreenButton = document.querySelector('#fullscreen-button');
+      let dataUrl;
+      let wasmUrl;
+
+      function showError(message) {
+        loadingBar.hidden = true;
+        warningBanner.textContent = message;
+        warningBanner.hidden = false;
+      }
+
+      function showUnityBanner(message, type) {
+        if (!message) return;
+        const item = document.createElement('div');
+        item.textContent = message;
+        item.className = type === 'error' ? 'error' : 'notice';
+        warningBanner.appendChild(item);
+        warningBanner.hidden = false;
+        if (type !== 'error') setTimeout(() => item.remove(), 5000);
+      }
+
+      async function combineParts(parts, mimeType, label) {
+        const responses = await Promise.all(parts.map(async (part) => {
+          const response = await fetch(`${buildUrl}/${part}`, { cache: 'no-store' });
+          if (!response.ok) throw new Error(`Unable to load ${label} part ${part} (${response.status})`);
+          return new Uint8Array(await response.arrayBuffer());
+        }));
+        const total = responses.reduce((size, part) => size + part.byteLength, 0);
+        const combined = new Uint8Array(total);
+        let offset = 0;
+        for (const part of responses) {
+          combined.set(part, offset);
+          offset += part.byteLength;
+        }
+        return URL.createObjectURL(new Blob([combined], { type: mimeType }));
+      }
+
+      function loadScript(url) {
+        return new Promise((resolve, reject) => {
+          const script = document.createElement('script');
+          script.src = url;
+          script.onload = resolve;
+          script.onerror = () => reject(new Error(`Unable to load ${url}`));
+          document.head.appendChild(script);
+        });
+      }
+
+      async function startGame() {
+        loadingBar.hidden = false;
+        try {
+          [dataUrl, wasmUrl] = await Promise.all([
+            combineParts(dataParts, 'application/octet-stream', 'game data'),
+            combineParts(wasmParts, 'application/wasm', 'WebAssembly')
+          ]);
+          await loadScript(`${buildUrl}/loader.js`);
+          const config = {
+            arguments: [],
+            dataUrl,
+            frameworkUrl: `${buildUrl}/framework.js`,
+            codeUrl: wasmUrl,
+            streamingAssetsUrl: 'StreamingAssets',
+            companyName: 'Rike Games',
+            productName: 'Bills Must Be Paid',
+            productVersion: '0.2.7.4',
+            showBanner: showUnityBanner
+          };
+          await createUnityInstance(canvas, config, (progress) => {
+            progressBar.style.width = `${Math.round(progress * 100)}%`;
+          });
+          loadingBar.hidden = true;
+          document.documentElement.classList.add('game-ready');
+        } catch (error) {
+          console.error(error);
+          showError(`The game could not start. ${error.message || error}`);
+        }
+      }
+
+      async function toggleFullscreen() {
+        try {
+          if (document.fullscreenElement) await document.exitFullscreen();
+          else await container.requestFullscreen();
+        } catch (error) {
+          console.warn('Fullscreen was not available:', error);
+        }
+      }
+
+      fullscreenButton.addEventListener('click', toggleFullscreen);
+      canvas.addEventListener('dblclick', toggleFullscreen);
+      document.addEventListener('keydown', (event) => {
+        if (event.key.toLowerCase() === 'f' && !event.ctrlKey && !event.altKey && !event.metaKey) {
+          event.preventDefault();
+          toggleFullscreen();
+        }
+      });
+      document.addEventListener('fullscreenchange', () => {
+        fullscreenButton.textContent = document.fullscreenElement ? 'Exit Fullscreen' : 'Fullscreen';
+        fullscreenButton.setAttribute('aria-label', fullscreenButton.textContent);
+      });
+      startGame();
+    })();
+  </script>
+</body>
+</html>
