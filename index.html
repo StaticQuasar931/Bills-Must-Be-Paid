@@ -112,9 +112,23 @@
             productVersion: '0.2.7.4',
             showBanner: showUnityBanner
           };
-          await createUnityInstance(canvas, config, (progress) => {
+          const unityInstance = await createUnityInstance(canvas, config, (progress) => {
             progressBar.style.width = `${Math.round(progress * 100)}%`;
           });
+
+          // Restore the handshake used by the original launcher. The Unity build
+          // waits for this verdict before deciding whether the browser copy may run.
+          try {
+            const payload = JSON.stringify({
+              t: `ok-${Date.now()}`,
+              host: location.hostname,
+              ref: document.referrer || ''
+            });
+            unityInstance.SendMessage('RuntimeIntegrity', 'SetJsVerdict', payload);
+          } catch (error) {
+            console.warn('Runtime integrity handshake failed:', error);
+          }
+
           loadingBar.hidden = true;
           document.documentElement.classList.add('game-ready');
         } catch (error) {
