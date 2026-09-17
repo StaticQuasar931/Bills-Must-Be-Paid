@@ -124,16 +124,17 @@
           // Restore the handshake used by the original launcher. The Unity build
           // waits for this verdict before deciding whether the browser copy may run.
           try {
+            // Apps Script serves the user HTML from a randomized
+            // script.googleusercontent.com frame. Normalize both handshake
+            // values because the game validates the referrer as well as host.
+            const currentHost = location.hostname.toLowerCase();
+            const isAppsScriptFrame = currentHost.endsWith('.script.googleusercontent.com');
+            const reportedHost = isAppsScriptFrame ? 'script.google.com' : currentHost;
+            const reportedRef = isAppsScriptFrame ? 'https://script.google.com/' : (document.referrer || '');
             const payload = JSON.stringify({
               t: `ok-${Date.now()}`,
-              // Apps Script serves the user HTML from a randomized
-              // script.googleusercontent.com frame. Report the public Apps
-              // Script host so the game's integrity policy sees the URL the
-              // player actually opened.
-              host: location.hostname.toLowerCase().endsWith('.script.googleusercontent.com')
-                ? 'script.google.com'
-                : location.hostname,
-              ref: document.referrer || ''
+              host: reportedHost,
+              ref: reportedRef
             });
             unityInstance.SendMessage('RuntimeIntegrity', 'SetJsVerdict', payload);
           } catch (error) {
