@@ -20,7 +20,7 @@
     <section id="unity-loading-bar" aria-live="polite">
       <div id="unity-logo" aria-hidden="true"></div>
       <div id="unity-progress-bar-empty"><div id="unity-progress-bar-full"></div></div>
-      <p id="loading-text">Loading Bills Must Be Paid...</p>
+      <p id="loading-text">The game is stabilizing. Please allow a few seconds for loading to finish. After you break the first piggy bank, performance should settle and gameplay will be smoother.</p>
     </section>
 
     <div id="unity-warning" role="alert" hidden></div>
@@ -121,7 +121,13 @@
           try {
             const payload = JSON.stringify({
               t: `ok-${Date.now()}`,
-              host: location.hostname,
+              // Apps Script serves the user HTML from a randomized
+              // script.googleusercontent.com frame. Report the public Apps
+              // Script host so the game's integrity policy sees the URL the
+              // player actually opened.
+              host: location.hostname.toLowerCase().endsWith('.script.googleusercontent.com')
+                ? 'script.google.com'
+                : location.hostname,
               ref: document.referrer || ''
             });
             unityInstance.SendMessage('RuntimeIntegrity', 'SetJsVerdict', payload);
