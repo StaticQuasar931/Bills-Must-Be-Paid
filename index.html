@@ -48,8 +48,13 @@
       const progressBar = document.querySelector('#unity-progress-bar-full');
       const warningBanner = document.querySelector('#unity-warning');
       const fullscreenButton = document.querySelector('#fullscreen-button');
+      const staticMenu = document.querySelector('#static-menu');
       let dataUrl;
       let wasmUrl;
+
+      setTimeout(() => {
+        staticMenu?.classList.add('static-menu-hidden');
+      }, 10000);
 
       function showError(message) {
         loadingBar.hidden = true;
